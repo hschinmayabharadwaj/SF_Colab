@@ -1,0 +1,7 @@
+{
+  "name": "SF Ecosystem Dashboard",
+  "description": "A comprehensive management and visualization platform for the SF Ecosystem, featuring gamified merit tracking, economy management, and automated PRD analysis.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
