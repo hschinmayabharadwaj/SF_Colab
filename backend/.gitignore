@@ -1,0 +1,18 @@
+# Add this to .gitignore
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+app.db
+instance/
+.env
+.venv
+*.log
+nohup.out
