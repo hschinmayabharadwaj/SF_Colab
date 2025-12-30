@@ -1,19 +1,20 @@
 from datetime import datetime
 from sqlalchemy.orm import relationship
-from . import db
+import uuid
+from . import db, UUID, TIMESTAMP
 
 
 class UserInventory(db.Model):
     __tablename__ = "user_inventory"
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('virtual_products.id'), nullable=False)
-    purchase_id = db.Column(db.Integer, db.ForeignKey('product_purchases.id'))
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    product_id = db.Column(UUID(as_uuid=True), db.ForeignKey('virtual_products.id'), nullable=False)
+    purchase_id = db.Column(UUID(as_uuid=True), db.ForeignKey('product_purchases.id'))
     quantity = db.Column(db.Integer, default=1)
     remaining_uses = db.Column(db.Integer)  # For consumables
-    acquired_at = db.Column(db.DateTime, default=datetime.utcnow)
-    expires_at = db.Column(db.DateTime)
+    acquired_at = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    expires_at = db.Column(TIMESTAMP(timezone=True))
     is_equipped = db.Column(db.Boolean, default=False)  # For cosmetics
     is_active = db.Column(db.Boolean, default=True)  # For features
     is_consumed = db.Column(db.Boolean, default=False)

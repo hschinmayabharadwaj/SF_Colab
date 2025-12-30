@@ -1,14 +1,15 @@
 from datetime import datetime
-from sqlalchemy import Integer, Float, DateTime, ForeignKey
+from sqlalchemy import Integer, Float, ForeignKey
 from sqlalchemy.orm import relationship
-from . import db
+import uuid
+from . import db, UUID, TIMESTAMP
 
 
 class UserWallet(db.Model):
     __tablename__ = 'user_wallets'
     
-    id = db.Column(Integer, primary_key=True)
-    user_id = db.Column(Integer, ForeignKey('users.id'), nullable=False)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
     sf_coins = db.Column(Integer, default=0)
     premium_gems = db.Column(Integer, default=0)
     event_tokens = db.Column(Integer, default=0)
@@ -16,9 +17,9 @@ class UserWallet(db.Model):
     total_coins_spent = db.Column(Integer, default=0)
     daily_earnings = db.Column(Integer, default=0)
     daily_earning_limit = db.Column(Integer, default=1000)
-    created_at = db.Column(DateTime, default=datetime.utcnow)
-    updated_at = db.Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_earning_reset = db.Column(DateTime, default=datetime.utcnow)
+    created_at = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    updated_at = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_earning_reset = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow)
     
     # Relationships
     user = relationship("User", back_populates="wallet")

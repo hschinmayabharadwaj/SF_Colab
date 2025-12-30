@@ -1,15 +1,27 @@
 from datetime import datetime
-from . import db
+import uuid
+from . import db, UUID, JSONB, TIMESTAMP, ENUM
+
+# ENUM types for VirtualProduct
+product_type_enum = ENUM(
+    'feature_unlock', 'cosmetic', 'booster', 'subscription', 'collectible', 'currency_pack',
+    name='product_type_enum'
+)
+
+currency_type_enum = ENUM(
+    'sf_coins', 'premium_gems', 'event_tokens',
+    name='currency_type_enum'
+)
 
 
 class VirtualProduct(db.Model):
     __tablename__ = "virtual_products"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
-    product_type = db.Column(db.String(50), nullable=False)  # feature_unlock, cosmetic, booster, subscription, etc.
-    currency_type = db.Column(db.String(20), nullable=False)  # sf_coins, premium_gems, event_tokens
+    product_type = db.Column(product_type_enum, nullable=False)  # feature_unlock, cosmetic, booster, subscription, etc.
+    currency_type = db.Column(currency_type_enum, nullable=False)  # sf_coins, premium_gems, event_tokens
     price = db.Column(db.Numeric(10, 2), nullable=False)
     duration_days = db.Column(db.Integer)  # For time-based items
     consumable = db.Column(db.Boolean, default=False)
@@ -18,19 +30,19 @@ class VirtualProduct(db.Model):
     
     # Requirements
     min_user_level = db.Column(db.Integer, default=1)
-    required_achievements = db.Column(db.JSON)  # List of achievement IDs
+    required_achievements = db.Column(JSONB)  # List of achievement IDs
     
     # Visibility
     is_active = db.Column(db.Boolean, default=True)
-    available_from = db.Column(db.DateTime)
-    available_to = db.Column(db.DateTime)
+    available_from = db.Column(TIMESTAMP(timezone=True))
+    available_to = db.Column(TIMESTAMP(timezone=True))
     
     # Media
-    icon_url = db.Column(db.String(255))
-    preview_url = db.Column(db.String(255))
+    icon_url = db.Column(db.Text)
+    preview_url = db.Column(db.Text)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    updated_at = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     purchases = db.relationship('ProductPurchase', back_populates='product', cascade="all, delete-orphan")

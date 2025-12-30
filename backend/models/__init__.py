@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import UUID, JSONB, TIMESTAMP, ENUM
 
 db = SQLAlchemy()
 
@@ -11,10 +12,14 @@ from .wallet_transaction import WalletTransaction
 from .exchange_rate import ExchangeRate
 
 __all__ = [
-    'db', 
-    'User', 
-    'VirtualProduct', 
-    'ProductPurchase', 
+    'db',
+    'UUID',
+    'JSONB',
+    'TIMESTAMP',
+    'ENUM',
+    'User',
+    'VirtualProduct',
+    'ProductPurchase',
     'UserInventory',
     'UserWallet',
     'WalletTransaction',

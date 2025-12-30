@@ -1,22 +1,29 @@
 from datetime import datetime
 from sqlalchemy.orm import relationship
-from . import db
+import uuid
+from . import db, UUID, TIMESTAMP, ENUM
+
+# ENUM types for ProductPurchase
+purchase_status_enum = ENUM(
+    'pending', 'completed', 'cancelled', 'refunded', 'failed',
+    name='purchase_status_enum'
+)
 
 
 class ProductPurchase(db.Model):
     __tablename__ = "product_purchases"
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('virtual_products.id'), nullable=False)
-    currency_type = db.Column(db.String(20), nullable=False)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    product_id = db.Column(UUID(as_uuid=True), db.ForeignKey('virtual_products.id'), nullable=False)
+    currency_type = db.Column(db.Text, nullable=False)
     amount_paid = db.Column(db.Numeric(10, 2), nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, completed, cancelled, refunded
-    purchased_at = db.Column(db.DateTime, default=datetime.utcnow)
-    expires_at = db.Column(db.DateTime)
+    status = db.Column(purchase_status_enum, default='pending')  # pending, completed, cancelled, refunded
+    purchased_at = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow)
+    expires_at = db.Column(TIMESTAMP(timezone=True))
     is_delivered = db.Column(db.Boolean, default=False)
-    delivered_at = db.Column(db.DateTime)
-    transaction_id = db.Column(db.Integer)  # Links to WalletTransaction
+    delivered_at = db.Column(TIMESTAMP(timezone=True))
+    transaction_id = db.Column(UUID(as_uuid=True))  # Links to WalletTransaction
     
     # Relationships
     user = relationship('User', back_populates='purchases')
