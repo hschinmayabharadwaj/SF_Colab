@@ -1,8 +1,9 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from models import db, User, UserWallet, WalletTransaction, VirtualProduct, ProductPurchase, UserInventory, ExchangeRate
+from models import db, User, UserWallet, WalletTransaction, VirtualProduct, ProductPurchase, UserInventory, EventTokenBalance, ExchangeRate
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from uuid import UUID as PyUUID
 import os
 
 # Load environment variables
@@ -108,7 +109,7 @@ def create_user():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/users/<int:user_id>', methods=['GET'])
+@app.route('/users/user_id', methods=['GET'])
 def get_user(user_id):
     """Get user information"""
     try:
@@ -150,13 +151,31 @@ def list_users():
 # WALLET ENDPOINTS
 # ============================================================================
 
-@app.route('/wallet/balance/<int:user_id>', methods=['GET'])
+@app.route('/wallet/balance/<user_id>', methods=['GET'])
 def get_wallet_balance(user_id):
     """Get wallet balance for a user"""
     try:
-        wallet = db.session.query(UserWallet).filter_by(user_id=user_id).first()
+        # Convert string to UUID
+        user_uuid = PyUUID(user_id)
+        
+        wallet = db.session.query(UserWallet).filter_by(user_id=user_uuid).first()
+        """if not wallet:
+            return jsonify({"error": "Wallet not found"}), 404"""
+        
         if not wallet:
-            return jsonify({"error": "Wallet not found"}), 404
+            # Create a default wallet if not found
+            wallet = UserWallet(
+                user_id=user_uuid,
+                sf_coins=0,
+                premium_gems=0,
+                event_tokens=0,
+                total_coins_earned=0,
+                total_coins_spent=0,
+                daily_earnings=0,
+                daily_earning_limit=100  # or any default
+            )
+            db.session.add(wallet)
+            db.session.commit()
         
         return jsonify({
             "sf_coins": wallet.sf_coins,
@@ -167,11 +186,14 @@ def get_wallet_balance(user_id):
             "daily_earnings": wallet.daily_earnings,
             "daily_earning_limit": wallet.daily_earning_limit
         }), 200
+    except ValueError:
+        return jsonify({"error": "Invalid user ID format"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/wallet/history/<int:user_id>', methods=['GET'])   
+
+@app.route('/wallet/history/user_id', methods=['GET'])   
 def get_wallet_history(user_id):
     """Get wallet transaction history"""
     try:
@@ -306,7 +328,194 @@ def spend_coins():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+    
 
+@app.route('/wallet/refund', methods=['POST'])
+def refund_currency():
+    """Refund currency"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    user_id = data.get('user_id')
+    currency_type = data.get('currency_type')
+    amount = data.get('amount')
+    reason = data.get('reason', 'Refund')
+    
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not currency_type:
+        return jsonify({"error": "currency_type is required"}), 400
+    if not amount or amount <= 0:
+        return jsonify({"error": "amount must be positive"}), 400
+    if currency_type not in ['sf_coins', 'sf_crystals']:
+        return jsonify({"error": "currency_type must be sf_coins or sf_crystals"}), 400
+    
+    try:
+        wallet = UserWallet.query.filter_by(user_id=user_id).first()
+        if not wallet:
+            return jsonify({"error": "Wallet not found"}), 404
+        
+        if currency_type == 'sf_coins':
+            wallet.refund_sf_coins(amount)
+            new_balance = wallet.sf_coins_balance
+        else:
+            wallet.refund_sf_crystals(amount)
+            new_balance = wallet.sf_crystals_balance
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Refunded {amount} {currency_type}",
+            "new_balance": new_balance,
+            "reason": reason
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    
+    
+@app.route('/wallet/grant', methods=['POST'])
+def grant_currency():
+    """Admin: Grant currency to user"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    user_id = data.get('user_id')
+    currency_type = data.get('currency_type')
+    amount = data.get('amount')
+    description = data.get('description', 'Admin grant')
+    
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not currency_type:
+        return jsonify({"error": "currency_type is required"}), 400
+    if not amount or amount <= 0:
+        return jsonify({"error": "amount must be positive"}), 400
+    if currency_type not in ['sf_coins', 'sf_crystals']:
+        return jsonify({"error": "currency_type must be sf_coins or sf_crystals"}), 400
+    
+    try:
+        wallet = UserWallet.query.filter_by(user_id=user_id).first()
+        if not wallet:
+            return jsonify({"error": "Wallet not found"}), 404
+        
+        if currency_type == 'sf_coins':
+            wallet.sf_coins_balance += amount
+            wallet.lifetime_earned += amount
+            WalletTransaction.record_transaction(
+                wallet_id=wallet.id,
+                user_id=user_id,
+                transaction_type="admin_grant",
+                currency_type="sf_coins",
+                amount=amount,
+                balance_before=wallet.sf_coins_balance - amount,
+                balance_after=wallet.sf_coins_balance,
+                description=description
+            )
+            new_balance = wallet.sf_coins_balance
+        else:
+            wallet.add_sf_crystals(amount)
+            new_balance = wallet.sf_crystals_balance
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Granted {amount} {currency_type}",
+            "new_balance": new_balance
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/wallet/achievement', methods=['POST'])
+def award_achievement():
+    """Award achievement bonus"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    user_id = data.get('user_id')
+    amount = data.get('amount')
+    achievement_name = data.get('achievement_name', 'Achievement')
+    
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if not amount or amount <= 0:
+        return jsonify({"error": "amount must be positive"}), 400
+    
+    try:
+        wallet = UserWallet.query.filter_by(user_id=user_id).first()
+        if not wallet:
+            return jsonify({"error": "Wallet not found"}), 404
+        
+        wallet.award_achievement_bonus(amount)
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Awarded {amount} SF Coins for {achievement_name}",
+            "new_balance": wallet.sf_coins_balance
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/wallet/event-tokens/:user_id', methods=['GET'])
+def get_event_tokens(user_id):
+    """Get user's event token balances"""
+    try:
+        event_balances = EventTokenBalance.query.filter_by(user_id=user_id).all()
+        
+        if not event_balances:
+            return jsonify({"message": "No event tokens found", "events": []}), 200
+        
+        events = []
+        for eb in event_balances:
+            events.append({
+                "event_id": eb.event_id,
+                "balance": eb.balance,
+                "earned_total": eb.earned_total,
+                "spent_total": eb.spent_total,
+                "is_expired": eb.is_expired(),
+                "expires_at": eb.expires_at.isoformat() if eb.expires_at else None
+            })
+        
+        return jsonify({"user_id": user_id, "events": events}), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/wallet/reset-daily/user_id', methods=['POST'])
+def reset_daily_earnings(user_id):
+    """Reset daily earnings counter"""
+    try:
+        wallet = UserWallet.query.filter_by(user_id=user_id).first()
+        if not wallet:
+            return jsonify({"error": "Wallet not found"}), 404
+        
+        wallet.update_daily_tracker()
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Daily earnings reset",
+            "daily_earnings": wallet.daily_earnings,
+            "last_reset": wallet.last_earning_reset.isoformat()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # ============================================================================
 # VIRTUAL PRODUCT ENDPOINTS
@@ -532,7 +741,7 @@ def purchase_product(product_id):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/purchases/<int:user_id>', methods=['GET'])
+@app.route('/purchases/user_id', methods=['GET'])
 def get_user_purchases(user_id):
     """Get user's purchase history"""
     try:
@@ -561,7 +770,7 @@ def get_user_purchases(user_id):
 # INVENTORY ENDPOINTS
 # ============================================================================
 
-@app.route('/inventory/<int:user_id>', methods=['GET'])
+@app.route('/inventory/user_id', methods=['GET'])
 def get_user_inventory(user_id):
     """Get user's inventory"""
     try:
@@ -589,7 +798,7 @@ def get_user_inventory(user_id):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/inventory/<int:inventory_id>/equip', methods=['POST'])
+@app.route('/inventory/inventory_id/equip', methods=['POST'])
 def equip_item(inventory_id):
     """Equip an inventory item"""
     try:
@@ -613,7 +822,7 @@ def equip_item(inventory_id):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/inventory/<int:inventory_id>/unequip', methods=['POST'])
+@app.route('/inventory/inventory_id/unequip', methods=['POST'])
 def unequip_item(inventory_id):
     """Unequip an inventory item"""
     try:
@@ -634,7 +843,7 @@ def unequip_item(inventory_id):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/inventory/<int:inventory_id>/use', methods=['POST'])
+@app.route('/inventory/inventory_id/use', methods=['POST'])
 def use_consumable(inventory_id):
     """Use a consumable item"""
     try:
@@ -696,9 +905,8 @@ if __name__ == '__main__':
             db.session.add(test_wallet)
             print(f"Created test user with ID: {test_user.id}")
         
-        # Create some sample products if none exist
+        """Create some sample products if none exist
         product_count = db.session.query(VirtualProduct).count()
-        if product_count == 0:
             sample_products = [
                 VirtualProduct(
                     name="Premium Sword Skin",
@@ -746,7 +954,7 @@ if __name__ == '__main__':
             print(f"Created {len(sample_products)} sample products")
         
         db.session.commit()
-        print("Database initialization complete!")
+        print("Database initialization complete!")"""
     
     # Run the application
     app.run(debug=True, port=5001, host='0.0.0.0')

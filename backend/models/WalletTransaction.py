@@ -37,5 +37,26 @@ class WalletTransaction(db.Model):
     wallet = relationship("UserWallet", back_populates="transactions")
     user = relationship("User", back_populates="transactions")
     
+    @staticmethod
+    def record_transaction(wallet_id, user_id, transaction_type, currency_type, amount,
+                           balance_before, balance_after, source_type = None,
+                           source_id=None, description=None):
+        transaction = WalletTransaction(
+            wallet_id=wallet_id,
+            user_id=user_id,
+            transaction_type=transaction_type,
+            currency_type=currency_type,
+            amount=amount,
+            balance_before=balance_before,
+            balance_after=balance_after,
+            source_type=source_type,
+            source_id=source_id,
+            description=description
+        )
+        db.session.add(transaction)
+        db.session.commit()
+    
     def __repr__(self):
         return f'<WalletTransaction {self.id} {self.transaction_type} {self.amount} {self.currency_type}>'
+
+    

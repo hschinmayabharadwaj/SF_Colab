@@ -8,6 +8,7 @@ import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tool
 import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 import { getHealth, getWalletBalance, getWalletHistory, earnCoins } from './services/api';
 
+
 // --- Utilities for Audio Encoding/Decoding ---
 function encode(bytes: Uint8Array) {
   let binary = '';
@@ -97,7 +98,7 @@ const App: React.FC = () => {
   const [walletLoading, setWalletLoading] = useState(true);
   
   // User ID for the test user (created in backend)
-  const USER_ID = 1;
+  const USER_ID = '251b53e1-1aa1-47bb-8f34-f55e278fc8ae';
   
   // Transition tracking
   const [transitionState, setTransitionState] = useState<{ active: boolean; direction: 'up' | 'down'; league: string } | null>(null);
@@ -132,6 +133,40 @@ const App: React.FC = () => {
         console.error('Backend not reachable:', err);
       });
   }, []);
+
+const [userId, setUserId] = useState<string | null>(null);
+
+useEffect(() => {
+  // Fetch or create user on mount
+  const initUser = async () => {
+    try {
+      // Try to get existing user
+      const response = await fetch('http://127.0.0.1:5001/users');
+      const data = await response.json();
+      
+      if (data.users && data.users.length > 0) {
+        setUserId(data.users[0].id);
+      } else {
+        // Create a new user if none exists
+        const createResponse = await fetch('http://127.0.0.1:5001/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: 'alex_rivera',
+            email: 'alex@example.com'
+          })
+        });
+        const newUser = await createResponse.json();
+        setUserId(newUser.id);
+      }
+    } catch (error) {
+      console.error('Failed to initialize user:', error);
+    }
+  };
+  
+  initUser();
+}, []);
+
 
   // Fetch wallet data from backend
   useEffect(() => {
