@@ -21,6 +21,7 @@ class User(db.Model):
     transactions = relationship("WalletTransaction", back_populates="user", cascade="all, delete-orphan")
     purchases = relationship('ProductPurchase', back_populates='user', cascade="all, delete-orphan")
     inventory = relationship('UserInventory', back_populates='user', cascade="all, delete-orphan")
+    event_token_balances = db.relationship("EventTokenBalance", back_populates="user")
 
     def __repr__(self):
         return f"<User {self.username}>"

@@ -1,89 +1,126 @@
-// Centralized API client for your backend
+// API Service for SF Ecosystem Frontend
+// Connects to Flask backend on port 5001
 
-// Dev: use proxy "/api" (rewritten to backend root by Vite)
-// Prod: use full backend URL from VITE_API_URL (root, no prefix)
-const API_BASE = import.meta.env.DEV
-  ? '/api'
-  : (import.meta.env.VITE_API_URL || '');
+const API_BASE_URL = 'http://127.0.0.1:5001';
 
-function joinUrl(base: string, path: string) {
-  const p = path.startsWith('/') ? path : `/${path}`;
-  return `${base}${p}`;
-}
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(joinUrl(API_BASE, path), {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
-    ...init,
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res.json() as Promise<T>;
-}
 
 // Health check
-export async function getHealth(): Promise<{ status: string }> {
-  return request<{ status: string }>('/health');
+export async function getHealth() {
+  const response = await fetch(`${API_BASE_URL}/health`);
+  if (!response.ok) throw new Error('Health check failed');
+  return response.json();
 }
 
-// User management
-export async function createUser(payload: { username: string; email: string }) {
-  return request<{ id: number; username: string; email: string; wallet_created: boolean }>('/users', {
+// Get wallet balance
+/*export async function getWalletBalance(userId: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/balance/${userId}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error('Failed to fetch wallet balance');
+  return response.json();
+}*/
+
+export async function getWalletBalance(userId: string) {
+  const res = await fetch(`${API_BASE_URL}/wallet/balance/${userId}`);
+  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+  const data = await res.json(); // parse here, don't log res.json() directly elsewhere
+  console.log("Wallet data:", data);
+  return data;
+};
+
+
+// Get wallet transaction history
+export async function getWalletHistory(userId: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/history/${userId}`);
+  if (!response.ok) throw new Error('Failed to fetch wallet history');
+  return response.json();
+}
+
+// Earn coins
+export async function earnCoins(userId: string, amount: number, description?: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/earn`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      amount: amount,
+      description: description || 'Earned coins'
+    })
   });
+  if (!response.ok) throw new Error('Failed to earn coins');
+  return response.json();
 }
 
-export async function getUser(userId: number) {
-  return request<{ id: number; username: string; email: string; created_at: string }>(`/users/${userId}`);
-}
-
-// Wallet operations
-export interface WalletBalance {
-  sf_coins: number;
-  premium_gems: number;
-  event_tokens: number;
-  total_coins_earned: number;
-  total_coins_spent: number;
-  daily_earnings: number;
-  daily_earning_limit: number;
-}
-
-export interface WalletTransaction {
-  id: number;
-  transaction_type: string;
-  currency_type: string;
-  amount: number;
-  balance_before: number;
-  balance_after: number;
-  description: string;
-  created_at: string;
-}
-
-export async function getWalletBalance(userId: number): Promise<WalletBalance> {
-  return request<WalletBalance>(`/wallet/balance/${userId}`);
-}
-
-export async function getWalletHistory(userId: number): Promise<{ transactions: WalletTransaction[] }> {
-  return request<{ transactions: WalletTransaction[] }>(`/wallet/history/${userId}`);
-}
-
-export async function earnCoins(payload: { user_id: number; amount: number; description?: string }) {
-  return request<{ message: string; sf_coins: number; daily_earnings: number; transaction_id: number }>('/wallet/earn', {
+// Spend coins
+export async function spendCoins(userId: string, amount: number, description?: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/spend`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      amount: amount,
+      description: description || 'Spent coins'
+    })
   });
+  if (!response.ok) throw new Error('Failed to spend coins');
+  return response.json();
 }
 
-export async function spendCoins(payload: { user_id: number; amount: number; description?: string }) {
-  return request<{ message: string; sf_coins: number; transaction_id: number }>('/wallet/spend', {
+// Add premium gems
+export async function addPremiumGems(userId: string, amount: number) {
+  const response = await fetch(`${API_BASE_URL}/wallet/add-gems`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      amount: amount
+    })
   });
+  if (!response.ok) throw new Error('Failed to add gems');
+  return response.json();
+}
+
+// Get all products
+export async function getProducts() {
+  const response = await fetch(`${API_BASE_URL}/products`);
+  if (!response.ok) throw new Error('Failed to fetch products');
+  return response.json();
+}
+
+// Purchase product
+export async function purchaseProduct(userId: string, productId: string, currencyType: string) {
+  const response = await fetch(`${API_BASE_URL}/products/${productId}/purchase`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      currency_type: currencyType
+    })
+  });
+  if (!response.ok) throw new Error('Failed to purchase product');
+  return response.json();
+}
+
+// Get user inventory
+export async function getUserInventory(userId: string) {
+  const response = await fetch(`${API_BASE_URL}/inventory/${userId}`);
+  if (!response.ok) throw new Error('Failed to fetch inventory');
+  return response.json();
+}
+
+// Get user info
+export async function getUser(userId: string) {
+  const response = await fetch(`${API_BASE_URL}/users/${userId}`);
+  if (!response.ok) throw new Error('Failed to fetch user');
+  return response.json();
+}
+
+// Create user
+export async function createUser(username: string, email: string) {
+  const response = await fetch(`${API_BASE_URL}/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email })
+  });
+  if (!response.ok) throw new Error('Failed to create user');
+  return response.json();
 }
