@@ -6,7 +6,11 @@ import { PRD_CONTENT, INITIAL_ACHIEVEMENTS, LEAGUE_CONFIG } from './constants';
 import { gemini } from './services/geminiService';
 import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
-import { getHealth, getWalletBalance, getWalletHistory, earnCoins } from './services/api';
+import { getHealth, getWalletBalance, getWalletHistory, earnCoins, getUsers, createUser, resetDailyEarnings } from './services/api';
+import XPPage from './pages/XPPage';
+import WalletPage from './pages/WalletPage';
+import CrystalsPage from './pages/CrystalsPage';
+import PayoutPage from './pages/PayoutPage';
 
 
 // --- Utilities for Audio Encoding/Decoding ---
@@ -47,16 +51,6 @@ async function decodeAudioData(
   return buffer;
 }
 
-const chartData = [
-  { name: 'Mon', coins: 400, xp: 240 },
-  { name: 'Tue', coins: 300, xp: 139 },
-  { name: 'Wed', coins: 200, xp: 980 },
-  { name: 'Thu', coins: 278, xp: 390 },
-  { name: 'Fri', coins: 189, xp: 480 },
-  { name: 'Sat', coins: 239, xp: 380 },
-  { name: 'Sun', coins: 349, xp: 430 },
-];
-
 const Confetti: React.FC = () => {
   const pieces = useMemo(() => {
     return Array.from({ length: 50 }).map((_, i) => ({
@@ -88,17 +82,46 @@ const Confetti: React.FC = () => {
   );
 };
 
+type WalletState = {
+  coins: number;
+  crystals: number;
+  eventTokens: number;
+  totalEarned: number;
+  totalSpent: number;
+  dailyEarnings: number;
+  dailyLimit: number;
+};
+
+type ChartPoint = { name: string; coins: number; xp: number };
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [wallet, setWallet] = useState({ coins: 0, crystals: 0, pendingEarnings: 0 });
-  const [xp, setXp] = useState(8450);
+  const [currentPage, setCurrentPage] = useState<'main' | 'xp' | 'wallet' | 'crystals' | 'payout'>('main');
+  const [wallet, setWallet] = useState<WalletState>({
+    coins: 0,
+    crystals: 0,
+    eventTokens: 0,
+    totalEarned: 0,
+    totalSpent: 0,
+    dailyEarnings: 0,
+    dailyLimit: 0,
+  });
+  const [walletHistory, setWalletHistory] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<ChartPoint[]>([
+    { name: 'Mon', coins: 0, xp: 0 },
+    { name: 'Tue', coins: 0, xp: 0 },
+    { name: 'Wed', coins: 0, xp: 0 },
+    { name: 'Thu', coins: 0, xp: 0 },
+    { name: 'Fri', coins: 0, xp: 0 },
+    { name: 'Sat', coins: 0, xp: 0 },
+    { name: 'Sun', coins: 0, xp: 0 },
+  ]);
+  const [xp, setXp] = useState(0);
   const [aiResponse, setAiResponse] = useState('');
   const [aiQuery, setAiQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [walletLoading, setWalletLoading] = useState(true);
-  
-  // User ID for the test user (created in backend)
-  const USER_ID = '251b53e1-1aa1-47bb-8f34-f55e278fc8ae';
+  const [userId, setUserId] = useState<string | null>(null);
   
   // Transition tracking
   const [transitionState, setTransitionState] = useState<{ active: boolean; direction: 'up' | 'down'; league: string } | null>(null);
@@ -134,33 +157,22 @@ const App: React.FC = () => {
       });
   }, []);
 
-const [userId, setUserId] = useState<string | null>(null);
-
 useEffect(() => {
   // Fetch or create user on mount
   const initUser = async () => {
     try {
-      // Try to get existing user
-      const response = await fetch('http://127.0.0.1:5001/users');
-      const data = await response.json();
-      
+      const data = await getUsers();
       if (data.users && data.users.length > 0) {
         setUserId(data.users[0].id);
-      } else {
-        // Create a new user if none exists
-        const createResponse = await fetch('http://127.0.0.1:5001/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: 'alex_rivera',
-            email: 'alex@example.com'
-          })
-        });
-        const newUser = await createResponse.json();
-        setUserId(newUser.id);
+        return;
       }
+
+      const suffix = Math.floor(Math.random() * 10000);
+      const newUser = await createUser(`user_${suffix}`, `user_${suffix}@example.com`);
+      setUserId(newUser.id);
     } catch (error) {
       console.error('Failed to initialize user:', error);
+      addNotification('Unable to initialize user', 'error');
     }
   };
   
@@ -170,15 +182,45 @@ useEffect(() => {
 
   // Fetch wallet data from backend
   useEffect(() => {
+    if (!userId) return; // Wait for userId to be set
+    
     const fetchWalletData = async () => {
       try {
         setWalletLoading(true);
-        const walletData = await getWalletBalance(USER_ID);
-        setWallet({
-          coins: walletData.sf_coins,
-          crystals: walletData.premium_gems,
-          pendingEarnings: walletData.event_tokens // Using event_tokens as pending earnings for demo
+        const walletData = await getWalletBalance(userId);
+        const parsedWallet: WalletState = {
+          coins: walletData.sf_coins ?? 0,
+          crystals: walletData.premium_gems ?? 0,
+          eventTokens: walletData.event_tokens ?? 0,
+          totalEarned: walletData.total_coins_earned ?? 0,
+          totalSpent: walletData.total_coins_spent ?? 0,
+          dailyEarnings: walletData.daily_earnings ?? 0,
+          dailyLimit: walletData.daily_earning_limit ?? 0,
+        };
+        setWallet(parsedWallet);
+        setXp(walletData.total_coins_earned ?? 0);
+
+        // Build simple 7-day chart from transaction history
+        const history = await getWalletHistory(userId);
+        setWalletHistory(history.transactions || []);
+        const now = new Date();
+        const days = [...Array(7)].map((_, idx) => {
+          const d = new Date(now);
+          d.setDate(now.getDate() - (6 - idx));
+          return { key: d.toDateString(), label: d.toLocaleDateString('en-US', { weekday: 'short' }), coins: 0 };
         });
+        (history.transactions || []).forEach((tx: any) => {
+          if (!tx.created_at) return;
+          const txDate = new Date(tx.created_at);
+          const key = txDate.toDateString();
+          const bucket = days.find(d => d.key === key);
+          if (bucket) {
+            const delta = tx.transaction_type === 'earn' ? tx.amount : -Math.abs(tx.amount);
+            bucket.coins += delta;
+          }
+        });
+        setChartData(days.map(d => ({ name: d.label, coins: d.coins, xp: parsedWallet.totalEarned / 7 })));
+
         addNotification('Wallet data loaded successfully', 'success');
       } catch (error) {
         console.error('Failed to fetch wallet data:', error);
@@ -190,7 +232,7 @@ useEffect(() => {
     };
 
     fetchWalletData();
-  }, []);
+  }, [userId]);
 
   // Derive current league and progress
   const leagueData = useMemo(() => {
@@ -235,15 +277,26 @@ useEffect(() => {
     prevLeagueRef.current = leagueData.current.name;
   }, [leagueData.current.name]);
 
-  const handleClaimPayout = () => {
-    if (wallet.pendingEarnings <= 0) {
+  const handleClaimPayout = async () => {
+    if (!userId) {
+      addNotification("No user available for payout.", "error");
+      return;
+    }
+    if (wallet.dailyEarnings <= 0) {
       addNotification("No pending earnings to withdraw.", "error");
       return;
     }
-    const amount = wallet.pendingEarnings.toFixed(2);
-    addNotification(`Withdrawal of $${amount} initiated.`, 'info');
-    setWallet(prev => ({ ...prev, pendingEarnings: 0 }));
-    setTimeout(() => addNotification(`Successfully transferred $${amount} to your vault.`, "success"), 2000);
+
+    const amount = wallet.dailyEarnings.toLocaleString();
+    addNotification(`Withdrawal of ${amount} tokens initiated.`, 'info');
+    try {
+      await resetDailyEarnings(userId);
+      setWallet(prev => ({ ...prev, dailyEarnings: 0 }));
+      addNotification(`Successfully transferred ${amount} tokens to your vault.`, "success");
+    } catch (error) {
+      console.error('Failed to reset daily earnings:', error);
+      addNotification('Failed to process payout. Please try again.', 'error');
+    }
   };
 
   const askAi = async () => {
@@ -263,7 +316,7 @@ useEffect(() => {
     setLiveTranscription('');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
       const inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextsRef.current = { input: inputAudioContext, output: outputAudioContext };
@@ -383,10 +436,38 @@ useEffect(() => {
         return (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard title="Merit XP" value={xp.toLocaleString()} subValue={`Level ${Math.floor(xp / 200)} ${leagueData.current.name}`} icon="⭐" color="yellow" />
-              <StatCard title="Wallet (SF Coins)" value={wallet.coins.toLocaleString()} subValue="Approx. $124.50" icon="🪙" color="blue" />
-              <StatCard title="Crystals" value={wallet.crystals} subValue="Premium Utility" icon="💎" color="purple" />
-              <StatCard title="Pending Payout" value={`$${wallet.pendingEarnings.toFixed(2)}`} subValue="Auditable Earnings" icon="🏦" color="green" />
+              <StatCard 
+                title="Merit XP" 
+                value={xp.toLocaleString()} 
+                subValue={`Level ${Math.floor(xp / 200)} ${leagueData.current.name}`} 
+                icon="⭐" 
+                color="yellow"
+                onClick={() => setCurrentPage('xp')}
+              />
+              <StatCard 
+                title="Wallet (SF Coins)" 
+                value={wallet.coins.toLocaleString()} 
+                subValue={`Earned ${wallet.totalEarned.toLocaleString()} • Spent ${wallet.totalSpent.toLocaleString()}`} 
+                icon="🪙" 
+                color="blue"
+                onClick={() => setCurrentPage('wallet')}
+              />
+              <StatCard 
+                title="Crystals" 
+                value={wallet.crystals} 
+                subValue="Premium Utility" 
+                icon="💎" 
+                color="purple"
+                onClick={() => setCurrentPage('crystals')}
+              />
+              <StatCard 
+                title="Pending Payout" 
+                value={wallet.dailyEarnings.toLocaleString()} 
+                subValue={`Daily earnings • Limit ${wallet.dailyLimit.toLocaleString()}`} 
+                icon="🏦" 
+                color="green"
+                onClick={() => setCurrentPage('payout')}
+              />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -522,8 +603,8 @@ useEffect(() => {
               <div className="bg-gradient-to-br from-blue-900/30 via-[#1a1a1a] to-black p-8 rounded-3xl border border-blue-500/20 shadow-2xl relative overflow-hidden group">
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all"></div>
                 <div className="relative z-10">
-                  <p className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-2">Total Estimated Balance</p>
-                  <h3 className="text-5xl font-black text-white tracking-tighter mb-8">${(wallet.coins / 100 + wallet.pendingEarnings).toFixed(2)}</h3>
+                  <p className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-2">Total Holdings</p>
+                  <h3 className="text-5xl font-black text-white tracking-tighter mb-8">{wallet.coins.toLocaleString()} SF Coins</h3>
                   
                   <div className="grid grid-cols-2 gap-6 mb-10">
                     <div>
@@ -531,15 +612,15 @@ useEffect(() => {
                       <p className="text-xl font-bold text-blue-200">{wallet.coins.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-1">SF Crystals</p>
+                      <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-1">Premium Gems</p>
                       <p className="text-xl font-bold text-purple-400">{wallet.crystals.toLocaleString()}</p>
                     </div>
                   </div>
 
                   <div className="p-5 bg-white/5 border border-white/10 rounded-2xl mb-8">
                     <div className="flex justify-between items-center mb-1">
-                      <p className="text-gray-400 text-sm font-medium">Pending Earnings</p>
-                      <span className="text-green-400 font-bold">${wallet.pendingEarnings.toFixed(2)}</span>
+                      <p className="text-gray-400 text-sm font-medium">Daily Earnings</p>
+                      <span className="text-green-400 font-bold">{wallet.dailyEarnings.toLocaleString()} / {wallet.dailyLimit.toLocaleString()}</span>
                     </div>
                     <p className="text-[10px] text-gray-500 italic">Subject to 48h protocol verification period</p>
                   </div>
@@ -560,25 +641,33 @@ useEffect(() => {
                     <span className="text-xs text-gray-500 font-normal">Last 30 Days</span>
                   </h3>
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    {[
-                      { type: 'Task Reward', amount: '+450 Coins', date: '2h ago', status: 'Completed', icon: '✅' },
-                      { type: 'League Bonus', amount: '+5.00 WP', date: 'Yesterday', status: 'Verified', icon: '💎' },
-                      { type: 'Subscription', amount: '-$9.99', date: '3 days ago', status: 'Recurring', icon: '🎟️' },
-                      { type: 'Withdrawal', amount: '-$42.00', date: '1 week ago', status: 'Completed', icon: '🏦' }
-                    ].map((tx, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-3 hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-white/5">
-                        <div className="flex items-center space-x-3">
-                          <span className="text-xl opacity-80">{tx.icon}</span>
-                          <div>
-                            <p className="text-sm font-semibold">{tx.type}</p>
-                            <p className="text-[10px] text-gray-500 uppercase">{tx.date} • {tx.status}</p>
+                    {walletHistory.length === 0 ? (
+                      <p className="text-sm text-gray-500">No transactions yet.</p>
+                    ) : (
+                      walletHistory.map((tx, idx) => {
+                        const isCredit = ['earn', 'grant', 'refund', 'achievement'].includes(tx.transaction_type);
+                        const sign = isCredit ? '+' : '-';
+                        const currencyLabel = tx.currency_type === 'premium_gems' ? 'Gems' : tx.currency_type === 'event_tokens' ? 'Event Tokens' : 'Coins';
+                        const icon = isCredit ? '✅' : '💸';
+                        const dateLabel = tx.created_at ? new Date(tx.created_at).toLocaleString() : '—';
+                        const title = tx.description || tx.transaction_type;
+
+                        return (
+                          <div key={tx.id || idx} className="flex justify-between items-center p-3 hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-white/5">
+                            <div className="flex items-center space-x-3">
+                              <span className="text-xl opacity-80">{icon}</span>
+                              <div>
+                                <p className="text-sm font-semibold capitalize">{title}</p>
+                                <p className="text-[10px] text-gray-500 uppercase">{dateLabel} • {tx.transaction_type}</p>
+                              </div>
+                            </div>
+                            <span className={`text-sm font-mono ${isCredit ? 'text-green-400' : 'text-red-400'}`}>
+                              {`${sign}${tx.amount} ${currencyLabel}`}
+                            </span>
                           </div>
-                        </div>
-                        <span className={`text-sm font-mono ${tx.amount.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
-                          {tx.amount}
-                        </span>
-                      </div>
-                    ))}
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -588,7 +677,7 @@ useEffect(() => {
                     <span>Economy Insight</span>
                   </h4>
                   <p className="text-xs text-gray-400 leading-relaxed">
-                    Based on your current activity velocity, your estimated earnings for the next governance cycle are projected to grow by 12.5%.
+                    Based on your current activity velocity, you're tracking at {wallet.dailyLimit ? Math.min(100, Math.round((wallet.dailyEarnings / wallet.dailyLimit) * 100)) : 0}% of your daily earning limit. Keep the streak to unlock higher leagues and bonuses.
                   </p>
                 </div>
               </div>
@@ -742,10 +831,29 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen pl-64 transition-all bg-[#0a0a0a]">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Page Routing */}
+      {currentPage === 'xp' && userId && (
+        <XPPage xp={xp} onXPChange={setXp} onBack={() => setCurrentPage('main')} />
+      )}
       
-      {/* Rank Up Overlay */}
-      {transitionState?.active && (
+      {currentPage === 'wallet' && userId && (
+        <WalletPage userId={userId} onBack={() => setCurrentPage('main')} />
+      )}
+      
+      {currentPage === 'crystals' && userId && (
+        <CrystalsPage userId={userId} crystals={wallet.crystals} onCrystalsChange={(newAmount) => setWallet({...wallet, crystals: newAmount})} onBack={() => setCurrentPage('main')} />
+      )}
+      
+      {currentPage === 'payout' && userId && (
+        <PayoutPage userId={userId} pendingPayout={wallet.pendingEarnings} onBack={() => setCurrentPage('main')} />
+      )}
+
+      {currentPage === 'main' && (
+        <>
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+          
+          {/* Rank Up Overlay */}
+          {transitionState?.active && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
           <div className="absolute inset-0 bg-black/85 backdrop-blur-xl animate-in fade-in duration-700"></div>
           {transitionState.direction === 'up' && <Confetti />}
@@ -802,6 +910,8 @@ useEffect(() => {
 
         {renderContent()}
       </main>
+        </>
+      )}
       
       <footer className="max-w-7xl mx-auto px-8 py-10 border-t border-gray-800 text-[10px] text-gray-600 flex justify-between uppercase tracking-widest">
         <span>© 2024 SF Ecosystem Protocols. All Rights Reserved.</span>

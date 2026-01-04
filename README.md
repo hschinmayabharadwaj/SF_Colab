@@ -6,7 +6,7 @@ A complete full-stack application combining a Flask-based backend API with a Rea
 
 ```
 sf-ecosystem-monorepo/
-├── backend/              # Flask API (PostgreSQL)
+├── backend/              # Flask API (MySQL)
 │   ├── app.py
 │   ├── models/
 │   ├── requirements.txt
@@ -24,7 +24,7 @@ sf-ecosystem-monorepo/
 
 - **Python 3.8+**
 - **Node.js 18+**
-- **PostgreSQL 12+**
+- **MySQL 5.7+**
 - **npm or yarn**
 
 ### 1. Clone the Repository
@@ -34,30 +34,36 @@ git clone https://github.com/YOUR_USERNAME/sf-ecosystem-monorepo.git
 cd sf-ecosystem-monorepo
 ```
 
-### 2. Setup Backend
+### 2. Setup MySQL
+
+```bash
+# Install MySQL (macOS)
+brew install mysql
+brew services start mysql
+
+# Create database
+mysql -u root -e 'CREATE DATABASE sf_combined;'
+```
+
+### 3. Setup Backend
 
 ```bash
 cd backend
 
-# Install PostgreSQL (macOS)
-brew install postgresql@15
-brew services start postgresql@15
-
-# Create database
-psql postgres -c 'CREATE DATABASE sf_combined;'
-
 # Configure environment
 cp .env.example .env
-# Edit .env with your PostgreSQL credentials
+# Edit .env with your MySQL credentials (default: root user)
+
+# Install dependencies
+pip install -r requirements.txt
 
 # Run backend
-chmod +x start.sh
-./start.sh
+python3 app.py
 ```
 
 Backend will run on: **http://localhost:5001**
 
-### 3. Setup Frontend
+### 4. Setup Frontend
 
 ```bash
 cd frontend
@@ -67,7 +73,7 @@ npm install
 
 # Configure API endpoint
 cp .env.example .env
-# Edit .env to set VITE_API_URL=http://localhost:5001
+# VITE_API_URL is already set to http://localhost:5001
 
 # Run frontend
 npm run dev
@@ -75,7 +81,7 @@ npm run dev
 
 Frontend will run on: **http://localhost:5173**
 
-## 📦 Backend (Flask + PostgreSQL)
+## 📦 Backend (Flask + MySQL)
 
 ### Features
 
@@ -90,7 +96,7 @@ Frontend will run on: **http://localhost:5173**
 
 - Flask 3.0
 - SQLAlchemy 2.0
-- PostgreSQL 12+
+- MySQL 5.7+
 - Flask-CORS
 
 ### API Endpoints

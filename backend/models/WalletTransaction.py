@@ -5,13 +5,11 @@ from . import db, UUID, TIMESTAMP, ENUM
 
 # ENUM types for WalletTransaction
 transaction_type_enum = ENUM(
-    'earn', 'spend', 'purchase', 'refund', 'transfer', 'bonus', 'penalty',
-    name='transaction_type_enum'
+    'earn', 'spend', 'purchase', 'refund', 'transfer', 'bonus', 'penalty'
 )
 
 currency_type_enum = ENUM(
-    'sf_coins', 'premium_gems', 'event_tokens',
-    name='currency_type_enum'
+    'sf_coins', 'premium_gems', 'event_tokens'
 )
 
 

@@ -9,8 +9,8 @@ class User(db.Model):
     __tablename__ = "users"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    username = db.Column(db.Text, unique=True, nullable=False)
-    email = db.Column(db.Text, unique=True, nullable=False)
+    username = db.Column(db.String(255), unique=True, nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.Text, nullable=True)  # Optional for now
     created_at = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow)
     updated_at = db.Column(TIMESTAMP(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -4,13 +4,11 @@ from . import db, UUID, JSONB, TIMESTAMP, ENUM
 
 # ENUM types for VirtualProduct
 product_type_enum = ENUM(
-    'feature_unlock', 'cosmetic', 'booster', 'subscription', 'collectible', 'currency_pack',
-    name='product_type_enum'
+    'feature_unlock', 'cosmetic', 'booster', 'subscription', 'collectible', 'currency_pack'
 )
 
 currency_type_enum = ENUM(
-    'sf_coins', 'premium_gems', 'event_tokens',
-    name='currency_type_enum'
+    'sf_coins', 'premium_gems', 'event_tokens'
 )
 
 

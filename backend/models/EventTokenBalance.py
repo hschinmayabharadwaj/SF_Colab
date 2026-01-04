@@ -12,7 +12,7 @@ class EventTokenBalance(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
     wallet_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user_wallets.id'), nullable=False)
-    event_id = db.Column(db.String, nullable=False)
+    event_id = db.Column(db.String(255), nullable=False)
     balance = db.Column(db.Integer, default=0)
     earned_total = db.Column(db.Integer, default=0)
     spent_total = db.Column(db.Integer, default=0)

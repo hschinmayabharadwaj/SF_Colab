@@ -6,10 +6,10 @@ export class GeminiService {
 
   constructor() {
     // Initialize GoogleGenAI with the API key from environment variables as per guidelines
-    const apiKey = import.meta.env.GEMINI_API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     try {
       if (!apiKey) {
-        console.warn("Gemini API key missing. AI features are disabled. Set GEMINI_API_KEY in .env.local.");
+  console.warn("Gemini API key missing. AI features are disabled. Set VITE_GEMINI_API_KEY in .env.local.");
         this.ai = null;
       } else {
         this.ai = new GoogleGenAI({ apiKey });
@@ -22,7 +22,7 @@ export class GeminiService {
 
   async analyzePRD(query: string, prdContent: string) {
     if (!this.ai) {
-      return "AI is not configured. Please set GEMINI_API_KEY in .env.local and restart the dev server.";
+  return "AI is not configured. Please set VITE_GEMINI_API_KEY in .env.local and restart the dev server.";
     }
     try {
       const response = await this.ai.models.generateContent({
@@ -34,15 +34,16 @@ export class GeminiService {
         }
       });
       return response.text;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gemini analysis error:", error);
-      return "I'm having trouble analyzing that part of the ecosystem right now. Please check your connection.";
+      const detail = error?.message || error?.toString?.() || 'unknown error';
+      return `I'm having trouble analyzing that part of the ecosystem right now. (${detail})`;
     }
   }
 
   async simulateVisibility(xp: number, reputation: number, recency: number = 1.0) {
     if (!this.ai) {
-      return "AI is not configured. Please set GEMINI_API_KEY in .env.local and restart the dev server.";
+  return "AI is not configured. Please set VITE_GEMINI_API_KEY in .env.local and restart the dev server.";
     }
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-flash-preview',

@@ -7,11 +7,17 @@ interface StatCardProps {
   subValue?: string;
   icon: string;
   color?: string;
+  onClick?: () => void;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, subValue, icon, color = 'blue' }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, subValue, icon, color = 'blue', onClick }) => {
   return (
-    <div className="bg-[#1a1a1a] border border-gray-800 p-5 rounded-xl hover:border-gray-700 transition-colors">
+    <div 
+      onClick={onClick}
+      className={`bg-[#1a1a1a] border border-gray-800 p-5 rounded-xl hover:border-gray-700 transition-colors ${
+        onClick ? 'cursor-pointer hover:bg-gray-900' : ''
+      }`}
+    >
       <div className="flex justify-between items-start mb-4">
         <p className="text-sm text-gray-400 font-medium">{title}</p>
         <span className={`text-xl p-2 rounded-lg bg-${color}-500/10 text-${color}-400`}>{icon}</span>

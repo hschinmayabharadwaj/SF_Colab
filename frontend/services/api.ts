@@ -11,6 +11,13 @@ export async function getHealth() {
   return response.json();
 }
 
+// Get all users
+export async function getUsers() {
+  const response = await fetch(`${API_BASE_URL}/users`);
+  if (!response.ok) throw new Error('Failed to fetch users');
+  return response.json();
+}
+
 // Get wallet balance
 /*export async function getWalletBalance(userId: string) {
   const response = await fetch(`${API_BASE_URL}/wallet/balance/${userId}`);
@@ -62,6 +69,71 @@ export async function spendCoins(userId: string, amount: number, description?: s
     })
   });
   if (!response.ok) throw new Error('Failed to spend coins');
+  return response.json();
+}
+
+// Refund currency
+export async function refundCurrency(userId: string, amount: number, currencyType: string, reason?: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/refund`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      amount: amount,
+      currency_type: currencyType,
+      reason: reason || 'Refund'
+    })
+  });
+  if (!response.ok) throw new Error('Failed to refund currency');
+  return response.json();
+}
+
+// Grant currency
+export async function grantCurrency(userId: string, amount: number, currencyType: string, reason?: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/grant`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      amount: amount,
+      currency_type: currencyType,
+      reason: reason || 'Grant'
+    })
+  });
+  if (!response.ok) throw new Error('Failed to grant currency');
+  return response.json();
+}
+
+// Award achievement reward
+export async function awardAchievementReward(userId: string, achievementId: string, amount: number, currencyType: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/achievement`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      achievement_id: achievementId,
+      amount: amount,
+      currency_type: currencyType
+    })
+  });
+  if (!response.ok) throw new Error('Failed to award achievement');
+  return response.json();
+}
+
+// Get event token balance
+export async function getEventTokens(userId: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/event-tokens/${userId}`);
+  if (!response.ok) throw new Error('Failed to fetch event tokens');
+  return response.json();
+}
+
+// Reset daily earnings
+export async function resetDailyEarnings(userId: string) {
+  const response = await fetch(`${API_BASE_URL}/wallet/reset-daily/${userId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  if (!response.ok) throw new Error('Failed to reset daily earnings');
   return response.json();
 }
 

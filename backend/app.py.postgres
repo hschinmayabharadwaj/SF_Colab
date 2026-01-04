@@ -11,12 +11,20 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configuration - MySQL database
-# Construct database URI from environment variables
-app.config["SQLALCHEMY_DATABASE_URI"] = (
-    f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@"
-    f"{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
-)
+# Configuration - PostgreSQL database
+# Get database URL from environment or construct from components
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if not DATABASE_URL:
+    # Construct from individual components if DATABASE_URL not provided
+    DB_USER = os.getenv('DB_USER', 'postgres')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', 'postgres')
+    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    DB_PORT = os.getenv('DB_PORT', '5432')
+    DB_NAME = os.getenv('DB_NAME', 'sf_combined')
+    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here-change-in-production')
 
@@ -185,7 +193,7 @@ def get_wallet_balance(user_id):
 
 
 
-@app.route('/wallet/history/<user_id>', methods=['GET'])   
+@app.route('/wallet/history/user_id', methods=['GET'])   
 def get_wallet_history(user_id):
     """Get wallet transaction history"""
     try:

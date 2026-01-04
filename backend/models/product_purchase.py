@@ -5,8 +5,7 @@ from . import db, UUID, TIMESTAMP, ENUM
 
 # ENUM types for ProductPurchase
 purchase_status_enum = ENUM(
-    'pending', 'completed', 'cancelled', 'refunded', 'failed',
-    name='purchase_status_enum'
+    'pending', 'completed', 'cancelled', 'refunded', 'failed'
 )
 
 
