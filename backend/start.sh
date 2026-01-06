@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # SF Combined Application Startup Script
