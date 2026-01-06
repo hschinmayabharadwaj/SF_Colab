@@ -1,0 +1,70 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: sf_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${DB_NAME:-sf_combined}
+      MYSQL_USER: ${DB_USER:-appuser}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-AppUser@123}
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"  # Changed to 3307 to avoid conflicts with local MySQL
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - sf_network
+
+  # Flask Backend
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: sf_backend
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-appuser}
+      DB_PASSWORD: ${DB_PASSWORD:-AppUser@123}
+      DB_NAME: ${DB_NAME:-sf_combined}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-this-in-production}
+      FLASK_ENV: ${FLASK_ENV:-development}
+      FLASK_DEBUG: ${FLASK_DEBUG:-1}
+    ports:
+      - "5002:5001"  # Changed to 5002 to avoid conflicts with local Flask
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - sf_network
+    restart: unless-stopped
+
+  # React/Vite Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: sf_frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:5001/api}
+    ports:
+      - "3001:3000"  # Changed to 3001 to avoid conflicts with local dev server
+    depends_on:
+      - backend
+    networks:
+      - sf_network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  sf_network:
+    driver: bridge

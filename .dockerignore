@@ -1,0 +1,16 @@
+backend/__pycache__
+backend/venv
+backend/*.pyc
+backend/.env
+backend/backend.log
+backend/app.db
+frontend/node_modules
+frontend/dist
+.git
+.gitignore
+README.md
+SETUP_GUIDE.md
+MIGRATION_SUMMARY.md
+POSTGRESQL_MIGRATION.md
+*.log
+.DS_Store
