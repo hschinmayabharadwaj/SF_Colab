@@ -1,39 +1,48 @@
 #!/bin/bash
 
-# Quick Start Script - Uses SQLite temporarily
+# Quick Start Script - Starts Backend and Frontend
 
 echo "🚀 SF Ecosystem - Quick Start"
 echo "================================"
 echo ""
-echo "This script will start both backend and frontend using SQLite."
-echo "For PostgreSQL setup, see SETUP_GUIDE.md"
+echo "This script will start both backend and frontend."
+echo "Make sure MySQL is running: brew services start mysql"
 echo ""
 
-# Create temporary SQLite configuration
-BACKEND_DIR="/Users/Shared/sf_new/sf-ecosystem-monorepo/backend"
-FRONTEND_DIR="/Users/Shared/sf_new/sf-ecosystem-monorepo/frontend"
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$SCRIPT_DIR/backend"
+FRONTEND_DIR="$SCRIPT_DIR/frontend"
 
-# Backup original app.py
-if [ ! -f "$BACKEND_DIR/app.py.postgres" ]; then
-    echo "📦 Backing up PostgreSQL configuration..."
-    cp "$BACKEND_DIR/app.py" "$BACKEND_DIR/app.py.postgres"
-fi
+echo "Backend dir: $BACKEND_DIR"
+echo "Frontend dir: $FRONTEND_DIR"
+echo ""
 
-# Check if SQLite version exists
-if [ ! -f "$BACKEND_DIR/app.py.sqlite" ]; then
-    echo "⚠️  SQLite configuration not found."
-    echo "Creating temporary SQLite configuration..."
-    echo ""
-    echo "To use PostgreSQL instead:"
-    echo "1. Install PostgreSQL: brew install postgresql@15"
-    echo "2. See SETUP_GUIDE.md for full instructions"
-    echo "3. Run: cp backend/app.py.postgres backend/app.py"
-    echo ""
+# Check MySQL is running
+echo "🔍 Checking MySQL connection..."
+if ! mysql -h 127.0.0.1 -u root -e "SELECT 1" &> /dev/null; then
+    echo "⚠️  MySQL is not running. Attempting to start..."
+    brew services start mysql
+    sleep 2
 fi
 
 # Start backend in background
-echo "🔧 Starting Backend (SQLite)..."
+echo "🔧 Starting Backend (MySQL)..."
 cd "$BACKEND_DIR"
+
+# Create virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv venv
+fi
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -q -r requirements.txt
+
+# Start Flask server in background
 python3 app.py > backend.log 2>&1 &
 BACKEND_PID=$!
 echo "Backend PID: $BACKEND_PID"
@@ -47,7 +56,8 @@ sleep 3
 if ps -p $BACKEND_PID > /dev/null; then
     echo "✅ Backend started on http://localhost:5001"
 else
-    echo "❌ Backend failed to start. Check backend.log"
+    echo "❌ Backend failed to start. Check backend.log:"
+    tail -20 backend.log
     exit 1
 fi
 
@@ -55,6 +65,7 @@ fi
 echo ""
 echo "🎨 Starting Frontend..."
 cd "$FRONTEND_DIR"
+npm install -q 2>/dev/null
 npm run dev
 
 # Cleanup function
