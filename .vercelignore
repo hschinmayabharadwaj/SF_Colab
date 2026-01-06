@@ -1,0 +1,10 @@
+backend/.env.example
+backend/README.md
+backend/start.sh
+backend/backend.log
+backend/__pycache__
+backend/venv
+quick-start.sh
+SETUP_GUIDE.md
+MIGRATION_SUMMARY.md
+POSTGRESQL_MIGRATION.md
