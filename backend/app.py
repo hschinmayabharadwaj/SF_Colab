@@ -28,6 +28,49 @@ db.init_app(app)
 
 
 # ============================================================================
+# DATABASE INITIALIZATION ON STARTUP
+# ============================================================================
+
+def init_db():
+    """Initialize database with tables and seed data"""
+    with app.app_context():
+        try:
+            # Create all tables
+            db.create_all()
+            print("✅ Database tables created!")
+            
+            # Create a default test user if none exists
+            test_user = db.session.query(User).filter_by(username='testuser').first()
+            if not test_user:
+                test_user = User(username='testuser', email='test@example.com')
+                db.session.add(test_user)
+                db.session.flush()
+                
+                # Create wallet for test user with some initial balance
+                test_wallet = UserWallet(
+                    user_id=test_user.id,
+                    sf_coins=12450,
+                    premium_gems=350,
+                    event_tokens=25,
+                    total_coins_earned=15000,
+                    total_coins_spent=2550,
+                    daily_earnings=450
+                )
+                db.session.add(test_wallet)
+                db.session.commit()
+                print(f"✅ Created test user with ID: {test_user.id}")
+            else:
+                print("✅ Test user already exists")
+                
+        except Exception as e:
+            print(f"⚠️ Database initialization error: {e}")
+            db.session.rollback()
+
+# Initialize database before handling requests
+init_db()
+
+
+# ============================================================================
 # HEALTH & INFO ENDPOINTS
 # ============================================================================
 
@@ -868,85 +911,9 @@ def use_consumable(inventory_id):
 
 
 # ============================================================================
-# DATABASE INITIALIZATION
+# APPLICATION STARTUP
 # ============================================================================
 
 if __name__ == '__main__':
-    with app.app_context():
-        # Create all tables
-        db.create_all()
-        print("Database tables created!")
-        
-        # Create a default test user if none exists
-        test_user = db.session.query(User).filter_by(username='testuser').first()
-        if not test_user:
-            test_user = User(username='testuser', email='test@example.com')
-            db.session.add(test_user)
-            db.session.flush()
-            
-            # Create wallet for test user with some initial balance
-            test_wallet = UserWallet(
-                user_id=test_user.id,
-                sf_coins=12450,
-                premium_gems=350,
-                event_tokens=25,
-                total_coins_earned=15000,
-                total_coins_spent=2550,
-                daily_earnings=450
-            )
-            db.session.add(test_wallet)
-            print(f"Created test user with ID: {test_user.id}")
-        
-        """Create some sample products if none exist
-        product_count = db.session.query(VirtualProduct).count()
-            sample_products = [
-                VirtualProduct(
-                    name="Premium Sword Skin",
-                    description="A legendary sword skin with particle effects",
-                    product_type="cosmetic",
-                    currency_type="premium_gems",
-                    price=150,
-                    consumable=False,
-                    icon_url="/assets/sword_skin.png"
-                ),
-                VirtualProduct(
-                    name="XP Booster",
-                    description="Double XP for 24 hours",
-                    product_type="booster",
-                    currency_type="sf_coins",
-                    price=500,
-                    duration_days=1,
-                    consumable=False,
-                    icon_url="/assets/xp_booster.png"
-                ),
-                VirtualProduct(
-                    name="Health Potion",
-                    description="Restores 100 HP",
-                    product_type="consumable",
-                    currency_type="sf_coins",
-                    price=50,
-                    consumable=True,
-                    icon_url="/assets/health_potion.png"
-                ),
-                VirtualProduct(
-                    name="Premium Membership",
-                    description="30 days of premium benefits",
-                    product_type="subscription",
-                    currency_type="premium_gems",
-                    price=500,
-                    duration_days=30,
-                    max_purchases=1,
-                    icon_url="/assets/premium.png"
-                )
-            ]
-            
-            for product in sample_products:
-                db.session.add(product)
-            
-            print(f"Created {len(sample_products)} sample products")
-        
-        db.session.commit()
-        print("Database initialization complete!")"""
-    
     # Run the application
     app.run(debug=True, port=5001, host='0.0.0.0')

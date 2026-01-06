@@ -2,14 +2,26 @@
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
+  "functions": {
+    "api/index.py": {
+      "runtime": "python3.11",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    }
+  ],
   "env": {
-    "DB_HOST": "",
-    "DB_PORT": "",
-    "DB_USER": "",
-    "DB_PASSWORD": "",
-    "DB_NAME": "",
-    "SECRET_KEY": "",
-    "VITE_GEMINI_API_KEY": "",
-    "VITE_API_URL": ""
+    "DB_HOST": "@db_host",
+    "DB_PORT": "@db_port",
+    "DB_USER": "@db_user",
+    "DB_PASSWORD": "@db_password",
+    "DB_NAME": "@db_name",
+    "SECRET_KEY": "@secret_key",
+    "VITE_GEMINI_API_KEY": "@vite_gemini_api_key",
+    "VITE_API_URL": "@vite_api_url"
   }
 }
