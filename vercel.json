@@ -1,0 +1,30 @@
+{
+  "builds": [
+    {
+      "src": "backend/requirements.txt",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/app.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend"
+    }
+  ],
+  "env": {
+    "DB_HOST": "@db_host",
+    "DB_PORT": "@db_port",
+    "DB_USER": "@db_user",
+    "DB_PASSWORD": "@db_password",
+    "DB_NAME": "@db_name",
+    "SECRET_KEY": "@secret_key"
+  }
+}
